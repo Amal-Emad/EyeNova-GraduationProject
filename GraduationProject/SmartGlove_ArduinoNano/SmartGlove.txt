@@ -1,0 +1,130 @@
+#include "SoftwareSerial.h"
+#include "DFRobotDFPlayerMini.h"
+
+// Define pins for Flex Sensors
+const int flexPin1 = A0;
+const int flexPin2 = A1;
+const int flexPin3 = A2;
+const int flexPin4 = A3;
+const int flexPin5 = A4;
+
+// Define pins for DFPlayer Mini
+static const uint8_t PIN_MP3_TX = 2; // TX of Arduino to RX of DFPlayer
+static const uint8_t PIN_MP3_RX = 3; // RX of Arduino to TX of DFPlayer
+SoftwareSerial softwareSerial(PIN_MP3_RX, PIN_MP3_TX);
+DFRobotDFPlayerMini player;
+
+// Variables for Flex Sensors
+int flexValue1, flexValue2, flexValue3, flexValue4, flexValue5;
+int threshold = 200; // Threshold to detect bending
+
+// State tracking
+bool sequence1Triggered = false;
+bool sequence2Triggered = false;
+
+void setup() {
+  // Set analog pins as inputs
+  pinMode(flexPin1, INPUT);
+  pinMode(flexPin2, INPUT);
+  pinMode(flexPin3, INPUT);
+  pinMode(flexPin4, INPUT);
+  pinMode(flexPin5, INPUT);
+
+  // Initialize serial communication
+  Serial.begin(9600);
+
+  // Initialize DFPlayer Mini
+  softwareSerial.begin(9600);
+  if (player.begin(softwareSerial)) {
+    Serial.println("DFPlayer Mini initialized successfully!");
+    player.volume(20); // Set volume (0 to 30)
+  } else {
+    Serial.println("Failed to initialize DFPlayer Mini!");
+    while (true);
+  }
+}
+
+void loop() {
+  // Read values from Flex Sensors
+  flexValue1 = analogRead(flexPin1);
+  flexValue2 = analogRead(flexPin2);
+  flexValue3 = analogRead(flexPin3);
+  flexValue4 = analogRead(flexPin4);
+  flexValue5 = analogRead(flexPin5);
+
+  // Print all sensor values for debugging
+  Serial.print("Flex1: ");
+  Serial.print(flexValue1);
+  Serial.print(" | Flex2: ");
+  Serial.print(flexValue2);
+  Serial.print(" | Flex3: ");
+  Serial.print(flexValue3);
+  Serial.print(" | Flex4: ");
+  Serial.print(flexValue4);
+  Serial.print(" | Flex5: ");
+  Serial.println(flexValue5);
+
+  // Individual flex sensor scenarios
+  if (flexValue1 > threshold) {
+    Serial.println("Scenario: Flex1 bent!");
+    player.play(1); // Play the first audio file
+    delay(2000);
+  }
+
+  if (flexValue2 > threshold) {
+    Serial.println("Scenario: Flex2 bent!");
+    player.play(2); // Play the second audio file
+    delay(2000);
+  }
+
+  // Combined flex scenarios
+  if (flexValue1 > threshold && flexValue2 > threshold) {
+    Serial.println("Scenario: Flex1 and Flex2 bent together!");
+    player.play(6); // Play a combined response
+    delay(2000);
+  }
+
+  if (flexValue3 > threshold && flexValue4 > threshold && flexValue5 > threshold) {
+    Serial.println("Scenario: Flex3, Flex4, and Flex5 bent together!");
+    player.play(7);
+    delay(3000);
+  }
+
+  // Sequential scenarios
+  if (flexValue1 > threshold && !sequence1Triggered) {
+    Serial.println("Scenario: Sequence 1 Step 1");
+    player.play(8); // Play an initial sequence message
+    sequence1Triggered = true;
+    delay(2000);
+  }
+
+  if (sequence1Triggered && flexValue3 > threshold) {
+    Serial.println("Scenario: Sequence 1 Step 2");
+    player.play(9); // Play a follow-up sequence message
+    sequence1Triggered = false; // Reset sequence
+    delay(2000);
+  }
+
+  if (flexValue4 > threshold && flexValue5 > threshold && !sequence2Triggered) {
+    Serial.println("Scenario: Sequence 2 Triggered!");
+    player.play(10); // Complex sequence message
+    sequence2Triggered = true;
+    delay(3000);
+  }
+
+  if (sequence2Triggered && flexValue2 > threshold) {
+    Serial.println("Scenario: Sequence 2 Follow-Up!");
+    player.play(11); // Play a conclusion message
+    sequence2Triggered = false; // Reset sequence
+    delay(2000);
+  }
+
+  // Final fallback scenario
+  if (flexValue1 > threshold && flexValue5 > threshold) {
+    Serial.println("Scenario: Flex1 and Flex5 bent together!");
+    player.play(12); // Play another unique response
+    delay(2000);
+  }
+
+  delay(100);
+}
